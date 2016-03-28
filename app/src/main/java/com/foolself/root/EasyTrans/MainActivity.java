@@ -27,8 +27,9 @@ public class MainActivity extends AppCompatActivity {
     private EditText editText;
     private TextView reqText;
     private TextView textView;
+    private ImageButton delete;
     private ImageButton submit;
-
+    private android.content.ClipboardManager clipboardManager;
     Handler handler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -61,14 +62,29 @@ public class MainActivity extends AppCompatActivity {
         editText = (EditText) findViewById(R.id.input);
         reqText = (TextView) findViewById(R.id.req);
         textView = (TextView) findViewById(R.id.result);
+        delete = (ImageButton) findViewById(R.id.delete);
         submit = (ImageButton) findViewById(R.id.submit);
+        clipboardManager  = (android.content.ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
+
+        if (clipboardManager.hasPrimaryClip()) {
+            editText.setText(clipboardManager.getPrimaryClip().getItemAt(0).getText());
+        }
 
         submit.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                reqText.setText(editText.getText().toString() + ": ");
-                Thread t = new Thread(newThread);
-                t.start();
+                if (!editText.getText().toString().equals("")) {
+                    reqText.setText(editText.getText().toString() + " :");
+                    Thread t = new Thread(newThread);
+                    t.start();
+                }
+            }
+        });
+
+        delete.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                editText.setText("");
             }
         });
 
@@ -83,8 +99,8 @@ public class MainActivity extends AppCompatActivity {
             from = "en";
             to = "zh";
         }
-        String appId = "you appId";
-        String token = "you token";
+        String appId = "appId";
+        String token = "token";
         String mainUrl = "http://api.fanyi.baidu.com/api/trans/vip/translate";
         Random random = new Random();
         int salt = random.nextInt(10000);
