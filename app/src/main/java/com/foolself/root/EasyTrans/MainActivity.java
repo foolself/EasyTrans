@@ -1,6 +1,8 @@
 package com.foolself.root.EasyTrans;
 
 import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -8,48 +10,67 @@ import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ListView;
+import android.widget.SimpleAdapter;
+import android.widget.Switch;
 import android.widget.TextView;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 public class MainActivity extends AppCompatActivity {
+    public DBManager dbHelper;
+    private SQLiteDatabase dictionary;
     private EditText editText;
     private TextView reqText;
-    private TextView textView;
     private ImageButton delete;
     private ImageButton submit;
+    private Switch net_ctrl;
     private android.content.ClipboardManager clipboardManager;
+
+    ListView listView;
+    private SimpleAdapter list_adapter;
+    private List<Map<String, Object>> list_data;
+
     Handler handler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
-            textView.setText(msg.obj + "");
+            list_adapter.notifyDataSetChanged();
         }
     };
 
     Runnable newThread = new Runnable() {
-        String result;
 
         @Override
         public void run() {
             String input = editText.getText().toString();
-            try {
-                result = getResult(input);
-            } catch (IOException e) {
-                e.printStackTrace();
+            if (!checkNetworkState() || !net_ctrl.isChecked()) {
+                getResultFromLoc(input);
+            }
+            else {
+                try {
+                    getResultFromNet(input);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
             Message msg = handler.obtainMessage();
-            msg.obj = result;
             handler.sendMessage(msg);
         }
     };
@@ -59,15 +80,32 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        String DBFilePath = DBManager.DB_PATH + "/" + DBManager.DB_NAME;
+        if (!fileIsExists(DBFilePath)) {
+            dbHelper = new DBManager(this);
+            dbHelper.openDatabase();
+            dbHelper.closeDatabase();
+        }
+        dictionary = SQLiteDatabase.openOrCreateDatabase(DBFilePath, null);
+
         editText = (EditText) findViewById(R.id.input);
         reqText = (TextView) findViewById(R.id.req);
-        textView = (TextView) findViewById(R.id.result);
         delete = (ImageButton) findViewById(R.id.delete);
         submit = (ImageButton) findViewById(R.id.submit);
+        net_ctrl = (Switch) findViewById(R.id.net_ctrl);
         clipboardManager  = (android.content.ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
+
+        listView = (ListView) findViewById(R.id.items);
+        list_data = new ArrayList<Map<String, Object>>();
+        list_adapter = new SimpleAdapter(this, list_data, R.layout.item,
+                new String[]{"word", "explain"}, new int[] {R.id.word, R.id.explain});
+        listView.setAdapter(list_adapter);
+
 
         if (clipboardManager.hasPrimaryClip()) {
             editText.setText(clipboardManager.getPrimaryClip().getItemAt(0).getText());
+            String temp = clipboardManager.getPrimaryClip().getDescription().toString();
+            Log.i("tag", "clip: " + temp);
         }
 
         submit.setOnClickListener(new View.OnClickListener() {
@@ -81,6 +119,16 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        net_ctrl.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                if (b)
+                    net_ctrl.setText("在线");
+                else
+                    net_ctrl.setText("离线");
+            }
+        });
+
         delete.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -90,8 +138,9 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private String getResult(String input) throws IOException {
+    private void getResultFromNet(String input) throws IOException {
 //        String q = URLEncoder.encode(rq, "utf-8");
+
         String q = input;
         String from = "zh";
         String to = "en";
@@ -99,6 +148,7 @@ public class MainActivity extends AppCompatActivity {
             from = "en";
             to = "zh";
         }
+
         String appId = "appId";
         String token = "token";
         String mainUrl = "http://api.fanyi.baidu.com/api/trans/vip/translate";
@@ -135,19 +185,56 @@ public class MainActivity extends AppCompatActivity {
             String[] arr1 = result.split("dst\":\"");
             String[] arr2 = arr1[1].split("\"");
             if (from.equals("zh")) {
-                return arr2[0];
+                result = arr2[0];
             }
             else {
                 String text = URLDecoder.decode(arr2[0], "utf-8");
-                text = convert(text);
-                return text;
+                result = convert(text);
             }
+
+            list_data.clear();
+            Map<String, Object> listem = new HashMap<String, Object>();
+            listem.put("word", "");
+            listem.put("explain", result);
+            list_data.add(listem);
         } catch (Exception e) {
             e.printStackTrace();
-            return "something error";
+            list_data.clear();
+            Map<String, Object> listem = new HashMap<String, Object>();
+            listem.put("word", "");
+            listem.put("explain", "Something Error");
+            list_data.add(listem);
         }
     }
 
+    private void getResultFromLoc(String input) {
+        String result = "";
+        String key = "explain";
+        Cursor cur;
+        if (input.charAt(0) < 'z' && input.charAt(0) > 'A') {
+            cur = dictionary.rawQuery("select * from Words where word=?", new String[]{input});
+        }
+        else {
+            cur = dictionary.rawQuery("select * from Words where explain like ?", new String[]{"%" + input + "%"});
+        }
+        list_data.clear();
+        if (cur != null) {
+            int NUM_R = cur.getCount();
+            if (cur.moveToFirst()) {
+                do {
+                    result = result + cur.getString(cur.getColumnIndex("word")) + ": \n  ";
+                    result = result + cur.getString(cur.getColumnIndex("explain")) + "\n\n";
+
+                    Map<String, Object> listem = new HashMap<String, Object>();
+                    listem.put("word",
+                            cur.getString(cur.getColumnIndex("word")));
+                    listem.put("explain",
+                            cur.getString(cur.getColumnIndex("explain")));
+                    list_data.add(listem);
+                } while (cur.moveToNext());
+            }
+        }
+    }
     public String convert(String utfString){
         StringBuilder sb = new StringBuilder();
         int i = -1;
@@ -171,5 +258,27 @@ public class MainActivity extends AppCompatActivity {
             flag = manager.getActiveNetworkInfo().isAvailable();
         }
         return flag;
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (dictionary != null && dictionary.isOpen()) {
+            dictionary.close();
+        }
+    }
+
+    public boolean fileIsExists(String filePath){
+        try{
+            File f=new File(filePath);
+            if(f.exists()){
+                Log.i("tag", "exist");
+                return true;
+            }
+
+        }catch (Exception e) {
+            return false;
+        }
+        return false;
     }
 }

@@ -2,16 +2,12 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent">
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
         <LinearLayout
             android:orientation="vertical"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="fill_parent">
             <LinearLayout
-                android:orientation="vertical"
+                android:orientation="horizontal"
                 android:gravity="top"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -22,8 +18,9 @@
 
                 <TextView
                     android:id="@+id/req"
-                    android:layout_width="fill_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_weight="9"
                     android:layout_marginLeft="20dp"
                     android:layout_marginTop="20dp"
                     android:layout_marginBottom="20dp"
@@ -32,33 +29,33 @@
                     android:textColor="@color/text"
                     android:text="Hi~ :"/>
 
-            </LinearLayout>
-            <LinearLayout
-                android:layout_width="fill_parent"
-                android:layout_height="wrap_content"
-                android:layout_below="@+id/linearLayout"
-                android:layout_alignParentStart="true">
-
-                <LinearLayout
-                    android:layout_width="fill_parent"
+                <Switch
+                    android:id="@+id/net_ctrl"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal">
+                    android:layout_weight="1"
+                    android:layout_gravity="center"
+                    android:checked="false"
+                    android:textOn="在线"
+                    android:textOff="离线"
+                    android:text="离线"
+                    android:textColor="@color/text"
+                    android:textSize="18dp"/>
 
-                    <TextView
-                        android:id="@+id/result"
-                        android:layout_width="fill_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="20dp"
-                        android:layout_marginBottom="100dp"
-                        android:layout_marginLeft="20dp"
-                        android:layout_marginRight="18dp"
-                        android:textIsSelectable="true"
-                        android:textSize="24dp"
-                        android:text="嗨~"/>
-                </LinearLayout>
             </LinearLayout>
+
+            <ListView
+                android:id="@+id/items"
+                android:layout_width="match_parent"
+                android:layout_height="fill_parent"
+                android:layout_above="@+id/linearLayout2"
+                android:layout_marginBottom="50dp"
+                android:layout_alignParentStart="true"
+                android:layout_marginTop="12dp"
+                android:layout_marginLeft="18dp"
+                android:layout_marginRight="12dp">
+            </ListView>
         </LinearLayout>
-    </ScrollView>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -68,7 +65,8 @@
         android:layout_marginLeft="10dp"
         android:layout_alignParentBottom="true"
         android:layout_alignParentStart="true"
-        android:weightSum="1">
+        android:weightSum="1"
+        android:id="@+id/linearLayout2">
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -107,4 +105,5 @@
             android:layout_marginRight="10dp"
             android:background="@drawable/go_32" />
     </LinearLayout>
+
 </RelativeLayout>
